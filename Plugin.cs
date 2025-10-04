@@ -6,11 +6,12 @@ using Steamworks;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
+using Nessie.ATLYSS.EasySettings;
 using UnityEngine;
 
 namespace ServerPrioritizer;
 
-[BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
+[BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
 [BepInProcess("ATLYSS.exe")]
 public class Plugin : BaseUnityPlugin
 {
@@ -22,7 +23,7 @@ public class Plugin : BaseUnityPlugin
     private void Awake()
     {
         Logger = base.Logger;
-        Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
+        Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
 
         _desiredLobbyNameConfig = Config.Bind(
             "General",
@@ -33,9 +34,23 @@ public class Plugin : BaseUnityPlugin
 
         _cachedDesiredLobbyName = _desiredLobbyNameConfig.Value;
 
+        Settings.OnInitialized.AddListener(AddSettings);
+        Settings.OnApplySettings.AddListener(() => { 
+            Config.Save(); 
+            _cachedDesiredLobbyName = _desiredLobbyNameConfig.Value;
+            Logger.LogInfo($"Desired server name set to '{_cachedDesiredLobbyName}'");
+        });
+
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
 
         Logger.LogInfo($"Desired server name set to '{_cachedDesiredLobbyName}'");
+    }
+
+    private void AddSettings()
+    {
+        SettingsTab tab = Settings.ModTab;
+        tab.AddHeader("Server Prioritizer");
+        tab.AddTextField("Server Name", _desiredLobbyNameConfig, "Server Name");
     }
 
     [HarmonyPatch(typeof(LobbyListManager))]
