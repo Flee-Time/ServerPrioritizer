@@ -2,7 +2,15 @@
 
 A BepInEx plugin for **ATLYSS** that automatically moves your favorite server to the top of the in-game server browser.
 
+--- 
+
+## ⚠️ Dependency 
+
+This mod **requires [EasySettings](https://thunderstore.io/c/atlyss/p/Nessie/EasySettings/)** to function. 
+Make sure you have it installed, or the plugin will not load.
+
 ---
+
 
 ## 📦 Features
 
