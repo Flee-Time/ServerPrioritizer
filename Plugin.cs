@@ -12,6 +12,7 @@ using UnityEngine;
 namespace ServerPrioritizer;
 
 [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
+[BepInDependency("EasySettings", BepInDependency.DependencyFlags.HardDependency)]
 [BepInProcess("ATLYSS.exe")]
 public class Plugin : BaseUnityPlugin
 {
@@ -34,9 +35,17 @@ public class Plugin : BaseUnityPlugin
 
         _cachedDesiredLobbyName = _desiredLobbyNameConfig.Value;
 
-        Settings.OnInitialized.AddListener(AddSettings);
-        Settings.OnApplySettings.AddListener(() => { 
-            Config.Save(); 
+        Logger.LogInfo("EasySettings found – config UI enabled.");
+
+        Settings.OnInitialized.AddListener(() =>
+        {
+            SettingsTab tab = Settings.ModTab;
+            tab.AddHeader("Server Prioritizer");
+            tab.AddTextField("Server Name", _desiredLobbyNameConfig, "Server Name");
+        });
+        Settings.OnApplySettings.AddListener(() => 
+        {
+            Config.Save();
             _cachedDesiredLobbyName = _desiredLobbyNameConfig.Value;
             Logger.LogInfo($"Desired server name set to '{_cachedDesiredLobbyName}'");
         });
@@ -44,13 +53,6 @@ public class Plugin : BaseUnityPlugin
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
 
         Logger.LogInfo($"Desired server name set to '{_cachedDesiredLobbyName}'");
-    }
-
-    private void AddSettings()
-    {
-        SettingsTab tab = Settings.ModTab;
-        tab.AddHeader("Server Prioritizer");
-        tab.AddTextField("Server Name", _desiredLobbyNameConfig, "Server Name");
     }
 
     [HarmonyPatch(typeof(LobbyListManager))]
