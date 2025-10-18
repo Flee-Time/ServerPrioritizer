@@ -19,6 +19,7 @@ public class Plugin : BaseUnityPlugin
     internal static new ManualLogSource Logger;
 
     private static ConfigEntry<string> _desiredLobbyNameConfig;
+    private static ConfigEntry<string> _lastJoinedLobbyNameConfig;
     private static string _cachedDesiredLobbyName;
 
     private void Awake()
@@ -30,7 +31,14 @@ public class Plugin : BaseUnityPlugin
             "General",
             "ServerName",
             "Eu 24/7 SFW",
-            "Enter the name of the ATLYSS server you want to see at the top of the list here."
+            "Enter the name of the ATLYSS server you want to see at the top of the list here. If left empty, the last joined server will appear on top."
+        );
+
+        _lastJoinedLobbyNameConfig = Config.Bind(
+            "General",
+            "LastJoinedServer",
+            "",
+            "No need to make any changes here, this field is only used for persistence."
         );
 
         _cachedDesiredLobbyName = _desiredLobbyNameConfig.Value;
@@ -55,13 +63,18 @@ public class Plugin : BaseUnityPlugin
         Logger.LogInfo($"Desired server name set to '{_cachedDesiredLobbyName}'");
     }
 
-    [HarmonyPatch(typeof(LobbyListManager))]
-    [HarmonyPatch("Iterate_SteamLobbies")]
+    [HarmonyPatch(typeof(LobbyListManager), "Iterate_SteamLobbies")]
     public class IterateSteamLobbiesPatch
     {
         public static void Postfix(LobbyListManager __instance)
         {
-            if (string.IsNullOrWhiteSpace(_cachedDesiredLobbyName) || __instance._lobbyListEntries == null || __instance._lobbyListEntries.Count == 0)
+            if (string.IsNullOrWhiteSpace(_desiredLobbyNameConfig.Value) && _cachedDesiredLobbyName != _lastJoinedLobbyNameConfig.Value)
+            {
+                Logger.LogInfo($"Using '{_lastJoinedLobbyNameConfig.Value}' as the desired server name since its empty.");
+                _cachedDesiredLobbyName = _lastJoinedLobbyNameConfig.Value;
+            }
+
+            if (__instance._lobbyListEntries == null || __instance._lobbyListEntries.Count == 0)
             {
                 Logger.LogInfo("_lobbyListEntries is empty");
                 return;
@@ -96,8 +109,7 @@ public class Plugin : BaseUnityPlugin
         }
     }
 
-    [HarmonyPatch(typeof(SteamLobby))]
-    [HarmonyPatch("GetLobbiesList")]
+    [HarmonyPatch(typeof(SteamLobby), "GetLobbiesList")]
     public static class GetLobbiesListPatch
     {
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
@@ -122,6 +134,19 @@ public class Plugin : BaseUnityPlugin
             }
 
             return codes;
+        }
+    }
+
+    [HarmonyPatch(typeof(ServerInfoObject), "Update")]
+    public static class OnServerInfoObjectUpdatePatch
+    {
+        static void Postfix(ServerInfoObject __instance)
+        {
+            if (_lastJoinedLobbyNameConfig.Value == __instance._serverName)
+                return;
+
+            Logger.LogInfo($"Storing '{__instance._serverName}' as the last entered server.");
+            _lastJoinedLobbyNameConfig.Value = __instance._serverName;
         }
     }
 }
